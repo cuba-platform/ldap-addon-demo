@@ -1,0 +1,287 @@
+buildscript {
+    ext.cubaVersion = '6.10.2'
+    repositories {
+
+        maven {
+            url 'https://repo.cuba-platform.com/content/groups/work'
+            credentials {
+                username(rootProject.hasProperty('repoUser') ? rootProject['repoUser'] : 'cuba')
+                password(rootProject.hasProperty('repoPass') ? rootProject['repoPass'] : 'cuba123')
+            }
+        }
+
+    }
+    dependencies {
+        classpath "com.haulmont.gradle:cuba-plugin:$cubaVersion"
+    }
+}
+
+def globalModule = project(':ldap-global')
+def coreModule = project(':ldap-core')
+def guiModule = project(':ldap-gui')
+def webModule = project(':ldap-web')
+
+def servletApi = 'org.apache.tomcat:tomcat-servlet-api:8.0.26'
+
+
+apply(plugin: 'idea')
+apply(plugin: 'cuba')
+
+cuba {
+    artifact {
+        group = 'com.haulmont.addon.ldap'
+        version = '1.1'
+        isSnapshot = true
+    }
+    tomcat {
+        dir = "$project.rootDir/deploy/tomcat"
+        port = 8080
+    }
+    ide {
+        vcs = 'Git'
+    }
+}
+
+dependencies {
+    appComponent("com.haulmont.cuba:cuba-global:$cubaVersion")
+
+}
+
+def hsql = 'org.hsqldb:hsqldb:2.2.9'
+
+def dbNameParam = 'ldap'
+def dbTestNameParam = 'ldap-test'
+
+configure([globalModule, coreModule, guiModule, webModule]) {
+    apply(plugin: 'java')
+    apply(plugin: 'maven')
+    apply(plugin: 'idea')
+    apply(plugin: 'cuba')
+    apply(plugin: 'checkstyle')
+
+    dependencies {
+        testCompile('junit:junit:4.12')
+        testCompile ('org.springframework.ldap:spring-ldap-test:2.3.2.RELEASE')
+        testCompile "org.apache.directory.server:apacheds-core:1.5.5",
+                "org.apache.directory.server:apacheds-core-entry:1.5.5",
+                "org.apache.directory.server:apacheds-protocol-shared:1.5.5",
+                "org.apache.directory.server:apacheds-protocol-ldap:1.5.5",
+                "org.apache.directory.server:apacheds-server-jndi:1.5.5",
+                "org.apache.directory.shared:shared-ldap:0.9.15"
+    }
+
+    task sourceJar(type: Jar) {
+        from file('src')
+        classifier = 'sources'
+    }
+
+    artifacts {
+        archives sourceJar
+    }
+
+    String checkstyleConfigDir = "${rootProject.projectDir}/config/checkstyle"
+    checkstyle {
+        toolVersion = "6.2"
+        configFile = new File("${checkstyleConfigDir}/checkstyle.xml".toString())
+        configProperties = [
+                'checkstyleConfigDir': checkstyleConfigDir
+        ]
+        reportsDir = new File("${buildDir}/checkstyle".toString())
+        ignoreFailures = false
+    }
+
+    checkstyleMain << {
+        def checkstyleDir = "${project.buildDir}/checkstyle".toString()
+        ant.xslt('in': "$checkstyleDir/main.xml",
+                out: "$checkstyleDir/$project.name-checkstyle.html",
+                style: "$checkstyleConfigDir/checkstyle.xsl")
+    }
+}
+
+configure(globalModule) {
+    entitiesEnhancing {
+        main { enabled = true }
+    }
+
+    jar {
+        manifest {
+            attributes('App-Component-Id': cuba.artifact.group)
+            attributes('App-Component-Version': cuba.artifact.version + (cuba.artifact.isSnapshot ? '-SNAPSHOT' : ''))
+        }
+    }
+
+    dependencies {
+        compile group: 'org.springframework.ldap', name: 'spring-ldap-core', version: '2.3.2.RELEASE'
+    }
+
+
+}
+
+configure(coreModule) {
+
+    configurations {
+        jdbc
+        dbscripts
+    }
+
+    dependencies {
+        compile(globalModule)
+        provided(servletApi)
+        jdbc(hsql)
+        testRuntime(hsql)
+    }
+
+    task cleanConf(description: 'Cleans up conf directory') {
+        doLast {
+            def dir = new File(cuba.tomcat.dir, '/conf/ldap-core')
+            if (dir.isDirectory()) {
+                ant.delete(includeemptydirs: true) {
+                    fileset(dir: dir, includes: '**/*', excludes: 'local.app.properties')
+                }
+            }
+        }
+    }
+
+    task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
+        appName = 'ldap-core'
+        appJars('ldap-global', 'ldap-core')
+    }
+
+    task createDb(dependsOn: assembleDbScripts, description: 'Creates local database', type: CubaDbCreation) {
+        dbName = 'ldap'
+        dbms = 'hsql'
+        host = 'localhost'
+        dbName = dbNameParam
+        dbUser = 'sa'
+        dbPassword = ''
+    }
+
+    task updateDb(dependsOn: assembleDbScripts, description: 'Updates local database', type: CubaDbUpdate) {
+        dbName = 'ldap'
+        dbms = 'hsql'
+        host = 'localhost'
+        dbName = dbNameParam
+        dbUser = 'sa'
+        dbPassword = ''
+    }
+
+    task startDb(description: 'Starts local HSQLDB server', type: CubaHsqlStart) {
+        dbName = dbNameParam
+    }
+
+    task stopDb(description: 'Stops local HSQLDB server', type: CubaHsqlStop) {
+        dbName = dbNameParam
+    }
+
+    task startTestDb(description: 'Starts local HSQLDB server', type: CubaHsqlStart) {
+        dbName = dbTestNameParam
+    }
+
+    task stopTestDb(description: 'Stops local HSQLDB server', type: CubaHsqlStop) {
+        dbName = dbTestNameParam
+    }
+
+    task removeDb(description: 'Removes local HSQL database', type: Delete) {
+        delete new File("$rootProject.projectDir/data")
+    }
+
+    task killDb(description: 'Kill local HSQLDB server process running on port 9001', type: CubaKillProcess) {
+        port = 9001
+    }
+
+    task createTestDb(dependsOn: assembleDbScripts, description: 'Creates local HSQL database', type: CubaDbCreation) {
+        dbms = 'hsql'
+        dbName = dbTestNameParam
+        dbUser = 'sa'
+        dbPassword = ''
+    }
+}
+
+configure(guiModule) {
+    dependencies {
+        compile(globalModule)
+
+    }
+
+    task deployConf(type: Copy) {
+        from file('src')
+        include "com/haulmont/addon/ldap/**"
+        into "$cuba.tomcat.dir/conf/ldap"
+    }
+}
+
+configure(webModule) {
+    configurations {
+        webcontent
+    }
+
+    dependencies {
+        provided(servletApi)
+        compile(guiModule)
+
+    }
+
+    task webArchive(type: Zip) {
+        from file("$buildDir/web")
+        from file('web')
+        classifier = 'web'
+    }
+
+    artifacts {
+        archives webArchive
+    }
+
+    task deployConf(type: Copy) {
+        from file('src')
+        include "com/haulmont/addon/ldap/**"
+        into "$cuba.tomcat.dir/conf/ldap"
+    }
+
+    task clearMessagesCache(type: CubaClearMessagesCache) {
+        appName = 'ldap'
+    }
+    deployConf.dependsOn clearMessagesCache
+
+    task cleanConf(description: 'Cleans up conf directory') {
+        doLast {
+            def dir = new File(cuba.tomcat.dir, '/conf/ldap')
+            if (dir.isDirectory()) {
+                ant.delete(includeemptydirs: true) {
+                    fileset(dir: dir, includes: '**/*', excludes: 'local.app.properties')
+                }
+            }
+        }
+    }
+
+    task deploy(dependsOn: [assemble, cleanConf], type: CubaDeployment) {
+        appName = 'ldap'
+        appJars('ldap-global', 'ldap-gui', 'ldap-web')
+    }
+}
+
+
+
+
+
+task undeploy(type: Delete, dependsOn: ':ldap-web:cleanConf') {
+    delete("$cuba.tomcat.dir/shared")
+    delete("$cuba.tomcat.dir/webapps/ldap-core")
+    delete("$cuba.tomcat.dir/webapps/ldap")
+}
+
+task restart(dependsOn: ['stop', ':ldap-core:deploy', ':ldap-web:deploy'], description: 'Redeploys applications and restarts local Tomcat') {
+    doLast {
+        ant.waitfor(maxwait: 6, maxwaitunit: 'second', checkevery: 2, checkeveryunit: 'second') {
+            not {
+                socket(server: 'localhost', port: '8787')
+            }
+        }
+        start.execute()
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.3.1'
+}
+
+apply from: 'extra.gradle'

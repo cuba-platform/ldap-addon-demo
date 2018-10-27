@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<window xmlns="http://schemas.haulmont.com/cuba/window.xsd"
+        caption="msg://editorCaption"
+        class="com.haulmont.addon.ldap.web.defaultmatchingrule.DefaultMatchingRuleEdit"
+        datasource="defaultMatchingRuleDs"
+        focusComponent="fieldGroup"
+        messagesPack="com.haulmont.addon.ldap.web.defaultmatchingrule">
+    <dsContext>
+        <datasource id="defaultMatchingRuleDs"
+                    class="com.haulmont.addon.ldap.entity.DefaultMatchingRule"
+                    view="defaultMatchingRule-with-group-roles-order-status">
+            <collectionDatasource id="rolesDs"
+                                  allowCommit="false"
+                                  property="roles"/>
+        </datasource>
+    </dsContext>
+    <dialogMode height="600"
+                width="800"/>
+    <layout expand="windowActions"
+            spacing="true">
+        <fieldGroup id="fieldGroup"
+                    datasource="defaultMatchingRuleDs">
+            <column width="250px">
+                <field caption="msg://descriptionFieldCaption"
+                       property="description"
+                       required="true"
+                       requiredMessage="msg://validationEmptyDescription"/>
+                <field caption="msg://isTerminalRuleFieldCaption"
+                       property="isTerminalRule"/>
+                <field caption="msg://accessGroupFieldCaption"
+                       property="accessGroup"
+                       required="true"
+                       requiredMessage="msg://validationEmptyAccessGroup"/>
+                <field caption="msg://isOverrideExistingAccessGroupFieldCaption"
+                       property="isOverrideExistingAccessGroup"/>
+            </column>
+        </fieldGroup>
+        <groupBox id="rolesBox"
+                  caption="msg://rolesTableCaption">
+            <table id="rolesTable"
+                   height="200px"
+                   width="100%">
+                <actions>
+                    <action id="add"/>
+                    <action id="remove"/>
+                </actions>
+                <columns>
+                    <column id="name"/>
+                    <column id="locName"/>
+                    <column id="description"/>
+                </columns>
+                <rows datasource="rolesDs"/>
+                <buttonsPanel>
+                    <button action="rolesTable.add"/>
+                    <button action="rolesTable.remove"/>
+                    <fieldGroup align="MIDDLE_LEFT"
+                                datasource="defaultMatchingRuleDs">
+                        <column width="250px">
+                            <field caption="msg://isOverrideExistingRolesFieldCaption"
+                                   property="isOverrideExistingRoles"/>
+                        </column>
+                    </fieldGroup>
+                </buttonsPanel>
+            </table>
+        </groupBox>
+        <frame id="windowActions"
+               screen="editWindowActions"/>
+    </layout>
+</window>
