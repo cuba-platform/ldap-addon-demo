@@ -1,1 +1,0 @@
-create unique index IDX_LDAP_MATCHING_RULE_ORDER_UK_ORDER_ on LDAP_MATCHING_RULE_ORDER (ORDER_) where DELETE_TS is null ;
