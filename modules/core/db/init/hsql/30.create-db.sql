@@ -1,3 +1,5 @@
+UPDATE LDAP_LDAP_CONFIG SET LOGIN_ATTRIBUTE = 'uid' WHERE id='ff2ebe74-3836-465b-9185-60141a6a0548';
+
 INSERT INTO sec_role (id, create_ts, created_by, version, update_ts, updated_by, delete_ts, deleted_by, name, loc_name, description, is_default_role, role_type) VALUES ('ecf07a97-7e35-caf1-f6b4-6667cc1ebcde', now(), 'admin', 1, now(), NULL, NULL, NULL, 'Mathematicians', NULL, NULL, NULL, NULL);
 INSERT INTO sec_role (id, create_ts, created_by, version, update_ts, updated_by, delete_ts, deleted_by, name, loc_name, description, is_default_role, role_type) VALUES ('b483c4d0-bb9a-1fc3-cbe3-d313661e0a40', now(), 'admin', 1, now(), NULL, NULL, NULL, 'Gauss', NULL, NULL, NULL, NULL);
 INSERT INTO sec_role (id, create_ts, created_by, version, update_ts, updated_by, delete_ts, deleted_by, name, loc_name, description, is_default_role, role_type) VALUES ('6285efa4-f89c-b94a-de90-ae113c08b2b6', now(), 'admin', 1, now(), NULL, NULL, NULL, 'Tesla role', NULL, NULL, NULL, NULL);
